@@ -160,6 +160,55 @@ def make_epsilon_greedy_policy(Q, epsilon, nA):
         return A
     return policy_fn
 
+def sarsa(env, num_episodes, discount_factor=1.0, alpha=0.5, epsilon=0.1):
+    
+    # The final action-value function.
+    # A nested dictionary that maps state -> (action -> action-value).
+    Q = defaultdict(lambda: np.random.rand(env.action_space.n))
+    
+    # Keeps track of useful statistics
+    stats = plotting.EpisodeStats(
+    episode_lengths=np.zeros(num_episodes),
+    episode_rewards=np.zeros(num_episodes))
+
+    # The policy we're following
+    policy = make_epsilon_greedy_policy(Q, epsilon, env.action_space.n)
+    
+    for i_episode in range(num_episodes):
+        # Print out which episode we're on, useful for debugging.
+#         print "Episode %f" %(i_episode),
+#         sys.stdout.flush()
+        if (i_episode + 1) % 10 == 0:
+            print "\rEpisode {}/{}.".format(i_episode + 1, num_episodes), 
+            sys.stdout.flush()
+
+        sys.stdout.flush()
+    
+        state = env.reset()
+        action_probs = policy(state)
+        action = np.random.choice(np.arange(len(action_probs)), p=action_probs)
+        
+        for t in itertools.count():
+            next_state, reward, done, _ = env.step(action)
+#             print "\ri=%i,state=%s" %(i_episode,str(np.unravel_index(next_state,env.shape))),
+            next_action_probs = policy(next_state)
+            next_action = np.random.choice(np.arange(len(next_action_probs)), p=next_action_probs)
+            
+            stats.episode_rewards[i_episode] += reward
+#             print "\rEpisode %f, Reward %f" %(i_episode,stats.episode_rewards[i_episode]),
+#             sys.stdout.flush()
+            stats.episode_lengths[i_episode] = t
+            
+            Q[state][action] += alpha*(reward + discount_factor*Q[next_state][next_action] - Q[state][action])
+        
+            if done:
+                break
+            
+            action = next_action
+            state = next_state
+        
+    return Q, stats
+
 def get_optimal_path(Q,env):
     env.reset()
     start_state = env.start_state
